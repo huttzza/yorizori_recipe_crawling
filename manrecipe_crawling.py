@@ -3,22 +3,26 @@ import requests
 import json
 from bs4 import BeautifulSoup
 from tqdm import tqdm
+from selenium import webdriver
+from webdriver_manager.chrome import ChromeDriverManager
+import re
+from time import sleep
 
 
 def Recipe(url):
     # print(url)
-    res = requests.get(url)
+    res = requests.get(url, timeout=10)
     res.raise_for_status()
     soup = BeautifulSoup(res.text, "lxml")
+    options = webdriver.ChromeOptions()
+    options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
 
     title = []
-    # thumb = []
 
-    ingred_name = []
-    ingred_amount = []
-    
-    recipe_step = []
-    recipe_image = []
+    ingredients = []
+
+    steps = []
 
     views = []
 
@@ -36,72 +40,31 @@ def Recipe(url):
         image_url = image["src"]
         thumb = image_url
 
-    # Ingred_name
+    # Ingredients
     b_ = soup.find_all("b", attrs={"class": "ready_ingre3_tt"})
     try:
         for b in b_:
             ingre_list = b.find_next_siblings("a")
             for ingre in ingre_list:
-                name = ingre.li.get_text()
-                split_name = name.split(" ", 1)
-                ingred_name.append(split_name[0])
-    except (AttributeError):
-        return
+                ingre_set = []
 
-    # Ingred_amount
-    b_ = soup.find_all("b", attrs={"class": "ready_ingre3_tt"})
-    try:
-        for b in b_:
-            ingre_list = b.find_next_siblings("a")
-            for ingre in ingre_list:
-                ingred_amount.append(ingre.li.span.get_text())
-    except (AttributeError):
-        return
+                # ingre name
+                driver.get(url)
+                script = re.split('[:;]', ingre['href'])[1]
+                driver.execute_script(script)
+                driver.implicitly_wait(10)
+                name = driver.find_element_by_class_name(
+                    "ingredient_tit").find_element_by_tag_name('b').text
+                ingre_set.append(name)
 
-    # Recipe_Step
-    res = soup.find('div', 'view_step')
-    i = 0
-    for n in res.find_all('div', 'view_step_cont'):
-        i = i + 1
-        recipe_step.append(n.get_text().replace('\n', '\n\n'))
-
-    # Recipe_Image
-    res = soup.find('div', 'view_step')
-    i = 0
-    for n in res.find_all('div', 'view_step_cont'):
-        i = i + 1
-        img = n.find("img")
-        if img != None:
-            img_src = img.get("src")
-        else:
-            img_src = ''
-        recipe_image.append(img_src)
-        # recipe_image.append('#' + str(i) + ':' + img_src)
-
-    # Views
-    res = soup.find('div', 'view_cate_num')
-    views = int(res.get_text().replace(',', ''))
-
-
-    # *** Added *** ingredient_tit
-   # ingredients
-    ingredients = []
-    b_ = soup.find_all("b", attrs={"class": "ready_ingre3_tt"})
-    try:
-        for b in b_:
-            ingre_list = b.find_next_siblings("a")
-            for ingre in ingre_list:
-                tem = []
-                name = ingre.li.get_text()
-                split_name = name.split("   ", 1)
-                tem.append(split_name[0])
-                tem.append(ingre.li.span.get_text())
-                ingredients.append(tem)
+                # ingre
+                ingre_set.append(ingre.li.span.get_text())
+                ingredients.append(ingre_set)
+        driver.quit()
     except (AttributeError):
         return
 
     # Steps
-    steps  = []
     res = soup.find('div', 'view_step')
     i = 0
     for n in res.find_all('div', 'view_step_cont'):
@@ -118,10 +81,14 @@ def Recipe(url):
         tem.append(img_src)
         steps.append(tem)
 
+    # Views
+    res = soup.find('div', 'view_cate_num')
+    views = int(res.get_text().replace(',', ''))
+
     # writer
     writer = int(0)
 
-    if recipe_step and ingred_name:
+    if steps and ingredients:
         recipe = [title, thumb, writer, ingredients,
                   steps, views]
         # recipe = [title, thumb, ingred_name, ingred_amount,
@@ -134,7 +101,7 @@ def Recipe(url):
 
 def Search(name):
     url = "https://www.10000recipe.com/recipe/list.html?q=" + name
-    res = requests.get(url)
+    res = requests.get(url, timeout=10)
     res.raise_for_status()
     soup = BeautifulSoup(res.text, "lxml")
 
@@ -170,7 +137,7 @@ def save_as_file(result, json_file, csv_file, is_header):
         tem["ingredients"] = recipe[3]
         tem["steps"] = recipe[4]
         tem["views"] = recipe[5]
-        
+
         data[str(index)] = tem
         index += 1
 
@@ -189,19 +156,19 @@ def save_as_file(result, json_file, csv_file, is_header):
 if __name__ == "__main__":
     # food_list = ["마늘", "양상추", "단호박", "아보카도", "쪽파", "달걀", "양파", "토마토", "당근",
     #              "콩나물", "감자", "소세지", "두부", "파프리카", "새송이버섯", "오렌지", "무"]
-    food_list = ["봄동"]
+    '''
+    result = Recipe('https://www.10000recipe.com/recipe/6880246')
+    print(result)
+    '''
+    food_list = ['가지', '고구마', '고추', '단호박', '달걀', '당근', '대파', '두부', '레몬', '마늘',
+                 '무우', '배추', '버섯', '브로콜리', '빵', '사과', '아보카도', '애호박', '양배추', '양파',
+                 '오이', '콩나물', '토마토', '파프리카', '피망']
 
     json_file = open("recipe.json", "w", encoding="utf8")
     csv_file = open("recipe.csv", "w", encoding="utf-8-sig", newline='')
     total = 0
 
     for i, food in enumerate(food_list):
-        # try:
-        #     result = Search(food)
-        #     save_as_file(result, json_file, csv_file, i == 0)
-        # except requests.exceptions.Timeout:
-        #     print("timeout error")
-        #     time.sleep(1)
         result, result_len = Search(food)
         save_as_file(result, json_file, csv_file, i == 0)
         total += result_len
