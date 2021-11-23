@@ -1,1 +1,2 @@
-recipe.*
+*.json
+*.csv

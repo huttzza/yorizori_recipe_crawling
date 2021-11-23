@@ -8,15 +8,16 @@ from webdriver_manager.chrome import ChromeDriverManager
 import re
 from time import sleep
 
+options = webdriver.ChromeOptions()
+options.add_experimental_option('excludeSwitches', ['enable-logging'])
+driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
+
 
 def Recipe(url):
     # print(url)
     res = requests.get(url, timeout=10)
     res.raise_for_status()
     soup = BeautifulSoup(res.text, "lxml")
-    options = webdriver.ChromeOptions()
-    options.add_experimental_option('excludeSwitches', ['enable-logging'])
-    driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
 
     title = []
 
@@ -51,18 +52,26 @@ def Recipe(url):
                 ingre_set = []
 
                 # ingre name
+                name = ingre.li.get_text()
+                name = name.split("   ", 1)[0]
+
                 driver.get(url)
                 script = re.split('[:;]', ingre['href'])[1]
                 driver.execute_script(script)
                 driver.implicitly_wait(10)
-                name = driver.find_element_by_class_name(
-                    "ingredient_tit").find_element_by_tag_name('b').text
+                try:
+                    tmp = driver.find_element_by_class_name("ingredient_tit")
+                    driver.implicitly_wait(10)
+                    if tmp:
+                        name = tmp.find_element_by_tag_name('b').text
+                except Exception:
+                    print("please check ", title[0], ":", name)
+                    pass
                 ingre_set.append(name)
 
                 # ingre
                 ingre_set.append(ingre.li.span.get_text())
                 ingredients.append(ingre_set)
-        driver.quit()
     except (AttributeError):
         return
 
@@ -183,5 +192,6 @@ if __name__ == "__main__":
 
     json_file.close()
     csv_file.close()
+    driver.quit()
 
     print("[%d recipe dataset generated]" % (total))
