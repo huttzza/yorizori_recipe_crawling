@@ -3,4 +3,5 @@ bs4==0.0.1
 lxml==4.6.3
 requests==2.26.0
 tqdm==4.62.3
-
+selenium==3.141.0
+webdriver-manager==3.5.2

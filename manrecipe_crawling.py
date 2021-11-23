@@ -6,7 +6,6 @@ from tqdm import tqdm
 from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
 import re
-from time import sleep
 
 options = webdriver.ChromeOptions()
 options.add_experimental_option('excludeSwitches', ['enable-logging'])
@@ -65,7 +64,7 @@ def Recipe(url):
                     if tmp:
                         name = tmp.find_element_by_tag_name('b').text
                 except Exception:
-                    print("please check ", title[0], ":", name)
+                    print("please check [", title[0], "](", url, "):", name)
                     pass
                 ingre_set.append(name)
 
